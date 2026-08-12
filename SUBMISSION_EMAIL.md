@@ -11,7 +11,10 @@ a startup and investor network (co-investor pairs, board interlocks, alumni
 pipelines), an alumni and mentorship network, and a healthcare care network
 (shared-patient doctor pairs, referrals). All three share one query engine,
 one parameterised Cypher suite, and one clean web UI that a non-technical
-person can use.
+person can use. There is also a GraphRAG "Ask" view: natural-language
+questions answered straight from the graph, with visible evidence — the LLM
+never writes Cypher, and every answer is grounded in the parameterised query
+suite.
 
 Why a graph: every question the app answers is about connections and
 multi-hop traversals (shared pairs, alumni chains, shortest paths,

@@ -272,14 +272,19 @@ class MockDriver:
             out = sorted(deg.values(), key=lambda x: -x["degree"])[: p.get("limit", 5)]
             return (out, None, None)
         if "-[r" in ql:  # generic 1-hop links (outgoing + incoming)
+            incoming = "<-[r]" in ql
             out = []
             for r in self.edges:
                 if r["from"][1].lower() == p.get("name", "").lower():
-                    out.append(self._link(r))
+                    if not incoming:
+                        link = self._link(r)
+                        link["incoming"] = False
+                        out.append(link)
                 elif r["to"][1].lower() == p.get("name", "").lower():
-                    out.append({"name": r["from"][1], "type": r["from"][0],
-                                "rel": r["rel"],
-                                "props": {k: v for k, v in r.items()
-                                          if k not in ("from", "to", "rel")}})
+                    if incoming:
+                        out.append({"name": r["from"][1], "type": r["from"][0],
+                                    "rel": r["rel"], "incoming": True,
+                                    "props": {k: v for k, v in r.items()
+                                              if k not in ("from", "to", "rel")}})
             return (out, None, None)
         raise ValueError("mock: unhandled query: %s" % q[:80])

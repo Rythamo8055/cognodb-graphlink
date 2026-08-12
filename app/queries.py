@@ -21,9 +21,9 @@ from .domains import get_domain, list_domains as _list_domains
 
 T_NODE = "MATCH (n {name: $name}) RETURN n AS node"
 
-T_NEIGHBORHOOD_OUT = "MATCH (n {name: $name})-[r]->(m) RETURN m.name AS name, m.type AS type, type(r) AS rel"
+T_NEIGHBORHOOD_OUT = "MATCH (n {name: $name})-[r]->(m) RETURN m.name AS name, m.type AS type, type(r) AS rel, false AS incoming"
 
-T_NEIGHBORHOOD_IN = "MATCH (n {name: $name})<-[r]-(m) RETURN m.name AS name, m.type AS type, type(r) AS rel"
+T_NEIGHBORHOOD_IN = "MATCH (n {name: $name})<-[r]-(m) RETURN m.name AS name, m.type AS type, type(r) AS rel, true AS incoming"
 
 T_HUBS = """
 MATCH (n)-[r]-()
@@ -47,6 +47,13 @@ RETURN n.name AS name, n.type AS type, n.city AS city
 LIMIT 25
 """
 
+T_SEARCH_CI = """
+MATCH (n)
+WHERE toLower(n.name) CONTAINS toLower($q)
+RETURN n.name AS name, n.type AS type
+LIMIT 25
+"""
+
 
 def _pairs_query(meta):
     rel = meta["pairs_rel"]
@@ -62,7 +69,8 @@ LIMIT $limit
 
 
 def _chain_query(meta):
-    pt, it, ot = meta["person_type"], meta["institution_type"], meta["org_type"]
+    nl = meta["node_labels"]
+    pt, it, ot = nl[meta["person_type"]], nl[meta["institution_type"]], nl[meta["org_type"]]
     sr = meta["study_rel"]
     orgs = "|".join(meta["org_rels"])
     return """
@@ -87,7 +95,7 @@ LIMIT $limit
 
 
 def _portfolio_query(meta):
-    rel, ot = meta["portfolio_rel"], meta["org_type"]
+    rel, ot = meta["portfolio_rel"], meta["node_labels"][meta["org_type"]]
     return """
 MATCH (c:%s {name: $company})<-[r:%s]-(i)
 RETURN i.name AS investor, i.type AS kind,
@@ -97,7 +105,7 @@ ORDER BY r.year DESC, r.round
 
 
 def _reach_query(meta):
-    rel, ot = meta["reach_rel"], meta["org_type"]
+    rel, ot = meta["reach_rel"], meta["node_labels"][meta["org_type"]]
     return """
 MATCH (c:%s {name: $company})<-[r:%s*1..2]-(i)
 RETURN DISTINCT i.name AS investor, i.type AS kind
@@ -137,6 +145,16 @@ def node(domain_id, name):
 
 def neighborhood(domain_id, name):
     """Incoming + outgoing 1-hop links: [{name, type, rel}]."""
+    return run_domain(domain_id, T_NEIGHBORHOOD_OUT, {"name": name}) + \
+        run_domain(domain_id, T_NEIGHBORHOOD_IN, {"name": name})
+
+
+def neighborhood_directed(domain_id, name):
+    """1-hop links tagged with edge direction.
+
+    Returns [{name, type, rel, incoming}] where incoming=True means the
+    edge points INTO the node named `name` (the neighbour is the source).
+    """
     return run_domain(domain_id, T_NEIGHBORHOOD_OUT, {"name": name}) + \
         run_domain(domain_id, T_NEIGHBORHOOD_IN, {"name": name})
 
@@ -224,8 +242,13 @@ def stats(domain_id):
 
 
 def search(domain_id, q):
-    """Case-insensitive-ish name search: [{name, type, ...}]."""
+    """Case-insensitive name search: [{name, type, ...}]."""
     return run_domain(domain_id, T_SEARCH, {"q": q})
+
+
+def search_ci(domain_id, q):
+    """Case-insensitive name search via toLower(): [{name, type}]."""
+    return run_domain(domain_id, T_SEARCH_CI, {"q": q})
 
 
 def insights(domain_id):

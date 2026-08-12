@@ -25,6 +25,7 @@
   <div class="view-toggle">
     <button id="btn-explore" class="view-btn active" type="button">Explore</button>
     <button id="btn-path" class="view-btn" type="button">Pathfinder</button>
+    <button id="btn-ask" class="view-btn" type="button">Ask</button>
   </div>
 </div>
 
@@ -79,6 +80,17 @@
     </div>
     <button id="pf-go" class="pf-btn" type="button">Find path</button>
     <div class="path-result" id="pf-result"></div>
+  </section>
+
+  <section class="ask-panel" id="ask-panel" aria-label="Ask">
+    <h2 class="block-title">Ask the graph</h2>
+    <p class="panel-sub">Natural-language questions answered from the graph — every answer is grounded in retrieved evidence.</p>
+    <div class="ask-row">
+      <input id="ask-q" autocomplete="off" placeholder='Try "Who invested in PayKart?"'>
+      <button id="ask-go" class="pf-btn" type="button">Ask</button>
+    </div>
+    <div class="chips" id="ask-chips"></div>
+    <div class="ask-result" id="ask-result"></div>
   </section>
 </main>
 

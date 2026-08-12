@@ -93,6 +93,8 @@ function selectDomain(id) {
   renderWhy();
   resetExplorer();
   resetPath();
+  renderAskExamples();
+  askHint();
 }
 
 function renderTabs() {
@@ -301,7 +303,9 @@ function switchView(mode) {
   viewMode = mode;
   $("#btn-explore").classList.toggle("active", mode === "explore");
   $("#btn-path").classList.toggle("active", mode === "path");
+  $("#btn-ask").classList.toggle("active", mode === "ask");
   $("#main").classList.toggle("path-mode", mode === "path");
+  $("#main").classList.toggle("ask-mode", mode === "ask");
 }
 
 async function renderExplorer() {
@@ -562,6 +566,107 @@ async function renderPath() {
   await findPath();
 }
 
+/* ---------- ask (GraphRAG) ---------- */
+
+const ASK_EXAMPLES = {
+  investors: ["Who invested in PayKart?",
+              "How is Divya Menon connected to Ananya Rao?",
+              "Which two investors co-invest?"],
+  education: ["Which alumni work at companies?"],
+  healthcare: ["Which doctors share patients?"],
+};
+
+function askHint() {
+  setEmpty($("#ask-result"),
+    'Ask a question in plain English — the answer is grounded in graph evidence.');
+}
+
+function renderAskExamples() {
+  const box = $("#ask-chips");
+  box.replaceChildren();
+  const examples = [];
+  for (const s of (meta.sample_searches || []).slice(0, 3)) {
+    examples.push("Tell me about " + s);
+  }
+  examples.push.apply(examples, ASK_EXAMPLES[state.domain] || []);
+  for (const q of examples) {
+    const c = el("button", "chip", q);
+    c.type = "button";
+    c.addEventListener("click", () => { $("#ask-q").value = q; runAsk(); });
+    box.append(c);
+  }
+}
+
+async function runAsk() {
+  const q = $("#ask-q").value.trim();
+  const out = $("#ask-result");
+  if (!q) { setEmpty(out, "Type a question first."); return; }
+  setLoading(out, "Tracing the graph…");
+  const res = await fetchJson(apiPath("/api/ask", { q }));
+  if (!res.ok) { handleFail(res, out, "Ask is unavailable right now."); return; }
+  paintAsk(out, res.data);
+}
+
+function paintAsk(container, data) {
+  container.replaceChildren();
+  const entities = data.entities || [];
+  const unmatched = data.unmatched || [];
+  const facts = data.facts || [];
+  const answered = !!facts.length && !!data.answer;
+
+  const card = el("div", "ask-card");
+  if (answered) {
+    card.append(el("span",
+      "source-badge " + (data.source === "llm" ? "llm" : "retrieval"),
+      data.source === "llm" ? "graph-grounded LLM" : "retrieval"));
+    card.append(el("p", "ask-answer", data.answer));
+  } else {
+    card.append(el("div", "empty", "The graph doesn't contain that information."));
+  }
+
+  if (entities.length) {
+    const chips = el("div", "chips");
+    for (const e of entities) {
+      chips.append(el("span", "chip", e.name + " · " + typeLabel(e.type)));
+    }
+    card.append(chips);
+  }
+
+  if (unmatched.length) {
+    const row = el("div", "ask-unmatched");
+    row.append(el("span", "ask-unmatched-label", "Not in the graph:"));
+    for (const u of unmatched) row.append(el("span", "chip", u));
+    card.append(row);
+  }
+
+  if (facts.length) {
+    const details = el("details", "ask-evidence");
+    details.append(el("summary", null,
+      "Evidence — " + facts.length + " fact" + (facts.length === 1 ? "" : "s")));
+    const list = el("div", "insight-list");
+    for (const f of facts) {
+      const row = el("div", "insight-row");
+      row.append(nodeSpan(f.from));
+      row.append(el("span", "step-verb", "→ " + verb(f.rel)));
+      row.append(nodeSpan(f.to));
+      const extra = fmtProps(f.props);
+      if (extra) row.append(el("span", "row-meta", "(" + extra + ")"));
+      list.append(row);
+    }
+    details.append(list);
+    card.append(details);
+  }
+
+  const hood = data.subgraph || null;
+  if (hood && hood.nodes && hood.nodes.length > 1) {
+    const box = el("div", "ask-graph");
+    box.append(el("h3", "card-title", "Evidence in the graph"));
+    renderNeighborhood(box, hood.nodes, hood.edges || []);
+    card.append(box);
+  }
+  container.append(card);
+}
+
 /* ---------- why a graph ---------- */
 
 const WHY = {
@@ -588,6 +693,9 @@ function wireStaticEvents() {
   $("#q").addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
   $("#btn-explore").addEventListener("click", () => switchView("explore"));
   $("#btn-path").addEventListener("click", () => { switchView("path"); resetPath(); });
+  $("#btn-ask").addEventListener("click", () => switchView("ask"));
+  $("#ask-go").addEventListener("click", runAsk);
+  $("#ask-q").addEventListener("keydown", e => { if (e.key === "Enter") runAsk(); });
   $("#why-link").addEventListener("click", e => {
     e.preventDefault();
     const d = $("#why");
@@ -666,6 +774,11 @@ function snapInit(snap) {
     paintPath($("#pf-result"), v.steps || [], v.from, v.to);
     $("#pf-a").value = v.from || "";
     $("#pf-b").value = v.to || "";
+  } else if (v.kind === "ask") {
+    switchView("ask");
+    $("#ask-q").value = v.q || v.question || "";
+    renderAskExamples();
+    paintAsk($("#ask-result"), v);
   } else {
     paintStats($("#stats"), (v.stats || {}).nodes || {}, (v.stats || {}).edges ?? 0);
     paintInsights(v.insights || {});

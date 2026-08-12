@@ -27,7 +27,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from app import db, queries
+from app import db, graphrag, queries
 
 load_dotenv()
 
@@ -113,7 +113,7 @@ def _hood(name, hops, domain):
 @app.get("/snap", include_in_schema=False)
 def snap(domain: str = Query("investors"), view: str = Query("home"),
          node: str = Query(""), frm: str = Query(None, alias="from"),
-         to: str = Query(None)):
+         to: str = Query(None), q: str = Query("")):
     """Server-rendered page snapshot for deterministic screenshots.
 
     Serves the same UI with all data inlined as window.__SNAP__ so the
@@ -135,6 +135,9 @@ def snap(domain: str = Query("investors"), view: str = Query("home"),
             payload["view"] = {"kind": "path", "domain": domain, "from": frm,
                                "to": to, "found": bool(recs),
                                "steps": recs[0]["steps"] if recs else []}
+        elif view == "ask" and q:
+            res = graphrag.answer(domain, q)
+            payload["view"] = {"kind": "ask", "question": q, **res}
         else:
             payload["view"]["stats"] = queries.stats(domain)
             payload["view"]["insights"] = queries.insights(domain)
@@ -176,6 +179,20 @@ def api_search(q: str = Query(..., min_length=1), domain: str = Query("investors
     get_meta(domain)
     try:
         return {"results": queries.search(domain, q.strip())}
+    except db.DBError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@app.get("/api/ask")
+def api_ask(q: str = Query(..., min_length=1), domain: str = Query("investors")):
+    get_meta(domain)
+    q = q.strip()
+    if not q:
+        raise HTTPException(status_code=400, detail="empty question")
+    try:
+        return graphrag.answer(domain, q)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="node not found")
     except db.DBError as e:
         raise HTTPException(status_code=503, detail=str(e))
 

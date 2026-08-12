@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
-# Capture UI screenshots for the README using headless Firefox, and
-# optionally stitch them into a narrated-style demo mp4 with ffmpeg.
+# Capture UI screenshots for the README using headless Firefox (six shots,
+# one per view including the GraphRAG Ask view), and optionally stitch them
+# into a narrated-style demo mp4 with ffmpeg.
 #
 # Usage:
 #   ./scripts/screenshots.sh            # PNGs only
@@ -76,6 +77,7 @@ shot screenshot-node            "/snap?domain=investors&view=node&node=PayKart"
 shot screenshot-path            "/snap?domain=investors&view=path&from=Divya%20Menon&to=Ananya%20Rao"
 shot screenshot-education       "/snap?domain=education&view=home"
 shot screenshot-healthcare      "/snap?domain=healthcare&view=home"
+shot screenshot-ask             "/snap?domain=investors&view=ask&q=Who%20invested%20in%20PayKart%3F"
 
 rm -rf "$PROFILE"
 
@@ -103,7 +105,8 @@ if [[ "$MAKE_VIDEO" -eq 1 ]]; then
     -loop 1 -t 1 -i "$OUT_DIR_ABS/screenshot-path.png" \
     -loop 1 -t 1 -i "$OUT_DIR_ABS/screenshot-education.png" \
     -loop 1 -t 1 -i "$OUT_DIR_ABS/screenshot-healthcare.png" \
-    -filter_complex "[0:v][1:v][2:v][3:v][4:v]concat=n=5:v=1:a=0[v]" \
+    -loop 1 -t 1 -i "$OUT_DIR_ABS/screenshot-ask.png" \
+    -filter_complex "[0:v][1:v][2:v][3:v][4:v][5:v]concat=n=6:v=1:a=0[v]" \
     -map "[v]" -c:v "$ENCODER" -b:v 2M -pix_fmt yuv420p \
     out.mp4 >/dev/null 2>&1
   echo "wrote out.mp4 ($(stat -c %s out.mp4) bytes, $(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 out.mp4 2>/dev/null || echo '?') s)"
@@ -115,5 +118,6 @@ echo "  [ ] images/screenshot-home-investors.png - investors tab home"
 echo "  [ ] images/screenshot-node.png           - PayKart node card"
 echo "  [ ] images/screenshot-path.png           - pathfinder view"
 echo "  [ ] images/screenshot-education.png      - education domain"
-echo "  [ ] images/screenshot-healthcare.png     - healthcare domain"
-[[ "$MAKE_VIDEO" -eq 1 ]] && echo "  [ ] out.mp4 - demo recording from the PNGs"
+  echo "  [ ] images/screenshot-healthcare.png     - healthcare domain"
+  echo "  [ ] images/screenshot-ask.png            - GraphRAG Ask view"
+  [[ "$MAKE_VIDEO" -eq 1 ]] && echo "  [ ] out.mp4 - demo recording from the PNGs"

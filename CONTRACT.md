@@ -139,3 +139,71 @@ every domain via curl. All 3 domains must return realistic data.
 One commit per logical change, conventional messages, repo-local git identity
 `Vishnu Vardhan <vishnuvardhanthe8055@gmail.com>`. Do NOT commit .env, .venv,
 __pycache__, screenshots/, uvicorn.log.
+
+## GraphRAG layer (phase 2) - "Ask" view
+
+Single source of truth for the GraphRAG upgrade. Do not deviate.
+
+### Contract: GET /api/ask?q=<question>&domain=<id>
+
+200 OK:
+```json
+{
+  "question": "Who invested in PayKart?",
+  "domain": "investors",
+  "intent": "portfolio",                  // one of: portfolio pairs interlocks alumni reach path hubs neighborhood
+  "entities": [{"name": "PayKart", "type": "company"}],  // grounded in graph, max 4
+  "unmatched": [],                        // entity names found by LLM parse but absent from graph
+  "facts": [{"from": "Acme Capital", "rel": "INVESTED_IN", "to": "PayKart", "props": {"amount_usd": 1200000, "round": "SERIES_A", "year": 2021}}],
+  "subgraph": {"nodes": [{"name": "PayKart", "type": "company", "hop": 0}],
+               "edges": [{"from": "Acme Capital", "to": "PayKart", "rel": "INVESTED_IN"}]},
+  "answer": "PayKart raised its Series A led by Acme Capital in 2021...",
+  "source": "llm"                         // "llm" | "retrieval"
+}
+```
+- 400 on unknown domain or empty/short q; 503 on db.DBError (existing patterns).
+- `facts[].rel` is the RAW relationship type (e.g. INVESTED_IN); the UI renders verbs
+  via the existing meta.rel_labels map (app.js `verb()`).
+- `subgraph` has the same shape as /api/neighborhood so the existing SVG renderer
+  can paint it unchanged.
+
+### Pipeline (app/graphrag.py, pure Python, no new deps beyond google-genai)
+
+1. Parse: LLM returns strict JSON {"intent": str, "entities": [str]} - intent MUST be
+   from the whitelist above. No key / bad JSON / network error -> heuristic fallback:
+   intent keyword rules + entity grounding via queries.search() exact/substring match.
+2. Retrieve: SWITCH on intent, run ONLY existing parameterised functions from
+   app/queries.py (portfolio, shared_pairs, interlocks, alumni_chains, reachability,
+   hubs, shortest_path, node, neighborhood, search). NEVER generate Cypher from the
+   question. Unsupported intent for a domain (portfolio/reach only exist on
+   investors) -> neighborhood fallback. Facts capped at 40, subgraph nodes at ~60.
+3. Answer: LLM (google-genai, model gemini-2.5-flash, env GEMINI_API_KEY/GOOGLE_API_KEY)
+   prompted: answer ONLY from the given facts, 2-4 sentences, cite entity names,
+   else say exactly "The graph doesn't contain that information." Fallback (no key):
+   template from top 5 facts, source="retrieval".
+
+### main.py
+- Add GET /api/ask (validates domain + q).
+- Extend /snap with view=ask&q=... inlining the same payload as window.__SNAP__
+  with view {"kind": "ask", ...} so screenshots are deterministic.
+
+### UI (static files, Ask view)
+- Third button in .view-toggle: "Ask" (id btn-ask), switchView("ask") follows the
+  exact existing pattern (btn-explore/btn-path at app.js:589).
+- Layout: question input + submit + example chips; below: answer card with source
+  badge ("graph-grounded LLM" / "retrieval"), entity chips, collapsible "Evidence"
+  details (fact rows "A --verb--> B (props)" reusing verb()/money() helpers), and
+  the subgraph painted with the existing neighborhood SVG renderer.
+- States: initial hint text, loading spinner, inline error, 503 handled by the
+  existing global banner. Empty facts -> "The graph doesn't contain that information."
+- Example questions (investors): "Who invested in PayKart?", "How is Divya Menon
+  connected to Ananya Rao?", "Which two investors co-invest?", "Who sits on two
+  boards?", "Who is the most connected investor?"
+
+### Deliverables after merge
+- requirements.txt: add google-genai>=1.0.0
+- screenshots.sh: add shot screenshot-ask "/snap?domain=investors&view=ask&q=Who%20invested%20in%20PayKart%3F"
+  and update the video concat to 6 inputs.
+- README: GraphRAG section (pipeline, why grounded answers, GEMINI_API_KEY optional),
+  /api/ask row in the API table, new screenshot, update recording section.
+- SUBMISSION_EMAIL.md: mention the GraphRAG Ask view.

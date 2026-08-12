@@ -10,6 +10,7 @@ lives in a graph.
 ![Pathfinder](images/screenshot-path.png)
 ![Alumni & Mentorship](images/screenshot-education.png)
 ![Care Network](images/screenshot-healthcare.png)
+![Ask — GraphRAG](images/screenshot-ask.png)
 
 ---
 
@@ -77,6 +78,47 @@ argument: **connection-shaped questions stay connection-shaped queries.**
 
 ---
 
+## GraphRAG — Ask the graph
+
+The Ask view answers natural-language questions directly from the graph. It is
+the GraphRAG pattern applied to this app: **retrieve on structure, answer with
+ground truth, show the path.**
+
+```
+question ──▶ intent + entities ──▶ fixed query suite ──▶ facts + subgraph ──▶ grounded answer
+natural       LLM-assisted,        the SAME parameter-  evidence for the      LLM from the facts
+language      heuristic            ised queries from    answer card +         only (or a retrieval
+text          fallback             app/queries.py       auditable fact list   template without a
+              without a key        — no new Cypher      + SVG subgraph        key)
+```
+
+The pipeline has three stages:
+
+1. **Parse** — the question becomes an intent from a fixed whitelist
+   (`portfolio`, `pairs`, `interlocks`, `alumni`, `reach`, `path`, `hubs`,
+   `neighborhood`) plus entity names. Gemini does the routing when
+   `GEMINI_API_KEY` is set; without a key, keyword rules and graph-grounded
+   name matching take over deterministically.
+2. **Retrieve** — the intent `SELECT`s existing functions from
+   `app/queries.py` (portfolio, shared pairs, interlocks, alumni chains, hubs,
+   shortest path, neighborhood...). The LLM never writes Cypher: no query is
+   ever built from the question text, only whitelisted parameterised queries
+   run.
+3. **Answer** — the facts go to Gemini with instructions to answer *only* from
+   them (2–4 sentences, citing entity names, or exactly "The graph doesn't
+   contain that information."). Without a key, a retrieval template answers
+   from the top facts. Either way the evidence is rendered back to the user —
+   a fact list plus the subgraph painted by the same SVG renderer as the
+   neighborhood view — so every answer is auditable to concrete nodes and
+   edges.
+
+Optional `GEMINI_API_KEY` (and `GEMINI_MODEL`, default `gemini-2.5-flash`)
+enable the LLM-assisted steps; without them the Ask view serves deterministic
+retrieval-only answers. Nothing else changes — the endpoint, intent whitelist,
+and caps (≤ 40 facts, ~60 subgraph nodes) are all part of the contract.
+
+---
+
 ## Data model
 
 Three subgraphs, one database. Relationship labels are defined in each
@@ -133,6 +175,7 @@ flowchart LR
 │   ├── __init__.py
 │   ├── db.py               # Neo4j driver + MockDriver (live/mock modes), 503 handling
 │   ├── queries.py          # parameterised Cypher suite + ABOUT_QUERIES reference
+│   ├── graphrag.py         # GraphRAG "Ask" layer: parse -> retrieve -> grounded answer
 │   ├── seed.py             # idempotent seeder: constraints, then nodes, then edges
 │   └── domains/
 │       ├── __init__.py     # domain registry: investors, education, healthcare
@@ -173,6 +216,11 @@ cp .env.example .env
 
 Fill in `COGNODB_URI` and `COGNODB_PASSWORD`. Defaults work for `COGNODB_USERNAME`
 (`cognodb`). Never commit `.env` — it is already gitignored.
+
+Optional: `GEMINI_API_KEY` (and `GEMINI_MODEL`, default `gemini-2.5-flash`)
+enable LLM-assisted intent/entity routing and grounded answers in the Ask
+(GraphRAG) view. Without them the view serves deterministic retrieval-only
+answers — every other feature is unaffected.
 
 ### 3. Seed the database
 
@@ -327,6 +375,7 @@ JSON detail when the database is unreachable.
 | `GET /api/neighborhood?name=&hops=&domain=` | Node + edges for the 2-hop SVG (up to 4 hops). |
 | `GET /api/path?from=&to=&domain=` | Shortest path (≤ 6 hops) with step captions. |
 | `GET /api/search?q=&domain=` | Name substring search across node types. |
+| `GET /api/ask?q=&domain=` | GraphRAG: intent+entity routing, facts, subgraph evidence, grounded answer (source: llm\|retrieval). |
 | `GET /api/insights?domain=` | `{"pairs", "interlocks", "alumni", "hubs"}` — the dashboard blocks. |
 | `GET /api/portfolio?name=&domain=` | Backers of a company (investors only; `{"supported": false}` elsewhere). |
 | `GET /api/reach?name=&domain=` | Nodes within 2 hops (investors only; `{"supported": false}` elsewhere). |
@@ -383,6 +432,10 @@ co-alumni pairs, mentor interlocks, alumni pipelines.
 
 ![Care Network](images/screenshot-healthcare.png) — the healthcare domain:
 shared-patient doctor pairs and hospital interlocks.
+
+![Ask — GraphRAG](images/screenshot-ask.png) — the GraphRAG question-answering
+view: a natural-language question, its grounded answer with a source badge, and
+the auditable evidence (fact list + subgraph SVG) beneath it.
 
 All screenshots are produced by [`scripts/screenshots.sh`](scripts/screenshots.sh):
 

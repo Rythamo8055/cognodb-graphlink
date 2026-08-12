@@ -98,9 +98,10 @@ a:hover { text-decoration: underline; }
   display: grid; grid-template-columns: minmax(0, 5fr) minmax(320px, 3fr);
   gap: 22px; align-items: start;
 }
-.main.path-mode { display: block; }
-.main.path-mode .col { display: none; }
+.main.path-mode, .main.ask-mode { display: block; }
+.main.path-mode .col, .main.ask-mode .col { display: none; }
 .main:not(.path-mode) .path-panel { display: none; }
+.main:not(.ask-mode) .ask-panel { display: none; }
 
 .footer {
   border-top: 1px solid var(--hairline); padding: 16px 28px;
@@ -302,6 +303,52 @@ a:hover { text-decoration: underline; }
 .step-verb { color: var(--accent); font-weight: 600; }
 .step-props { color: var(--ink-faint); font-size: 12px; }
 
+/* ---------- ask (GraphRAG) ---------- */
+.ask-panel { max-width: 720px; }
+.ask-row { display: flex; gap: 12px; align-items: stretch; margin-top: 6px; }
+.ask-row input {
+  flex: 1; min-width: 0; background: #fff; border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius); color: var(--ink); font-family: var(--font);
+  font-size: 14px; padding: 10px 12px; outline: none;
+}
+.ask-row input:focus { border-color: var(--accent); }
+.ask-row .pf-btn { margin-top: 0; }
+#ask-chips { margin-top: 14px; }
+.ask-result { margin-top: 20px; }
+.ask-card {
+  background: var(--mist); border: 1px solid var(--hairline);
+  border-radius: var(--radius); padding: 16px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.source-badge {
+  align-self: flex-start; display: inline-block; font-size: 10px; font-weight: 700;
+  letter-spacing: .05em; padding: 3px 10px; border-radius: 20px;
+  text-transform: uppercase; border: 1px solid;
+}
+.source-badge.llm {
+  background: var(--accent-soft); border-color: var(--danger-border); color: var(--accent);
+}
+.source-badge.retrieval {
+  background: var(--mist-2); border-color: var(--hairline); color: var(--ink-dim);
+}
+.ask-answer { font-size: 14.5px; line-height: 1.6; }
+.ask-card .chip { cursor: default; }
+.ask-unmatched {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px;
+}
+.ask-unmatched-label { color: var(--ink-faint); }
+.ask-unmatched .chip { border-style: dashed; color: var(--ink-faint); }
+.ask-evidence {
+  background: var(--mist-2); border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+}
+.ask-evidence summary {
+  cursor: pointer; padding: 12px 14px; font-weight: 700;
+  color: var(--navy); font-size: 13.5px;
+}
+.ask-evidence .insight-list { padding: 0 12px 12px; }
+.ask-graph { display: flex; flex-direction: column; gap: 8px; }
+
 /* ---------- why a graph ---------- */
 .why {
   margin-top: 26px; background: var(--mist);
@@ -326,4 +373,6 @@ a:hover { text-decoration: underline; }
   .view-toggle { padding: 0 16px; }
   .main { padding: 18px 16px 32px; }
   .brand-sub { display: none; }
+  .ask-row { flex-direction: column; }
+  .ask-row .pf-btn { align-self: flex-start; }
 }

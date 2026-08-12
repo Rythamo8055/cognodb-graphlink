@@ -1,10 +1,15 @@
 """Seed the graph database - constraints, then nodes, then relationships,
 for all three domains (investors, education, healthcare).
 
-Nodes MERGE on their (name, type) pair so repeated runs are safe and
-cross-domain name repeats collapse onto the same node. Relationships are
-CREATEed with their props. Relationship types come from each domain's
-rel_labels whitelist - never from user input.
+Nodes MERGE on their (name, type) pair and relationships MERGE on their
+(from, to, rel) triple, so repeated runs are safe and cross-domain name
+repeats collapse onto the same node. Relationship types come from each
+domain's rel_labels whitelist - never from user input.
+
+Every statement ends in an explicit RETURN. CognoDB sends result records
+even for writes that do not name a RETURN column, and the Bolt driver
+rejects records whose keys and values differ in length - so write
+statements must always project what they wrote.
 
 Refuses to run when MOCK_DB is set or no COGNODB_URI is configured.
 
@@ -63,7 +68,8 @@ def seed_domain(driver, name, dataset):
             "UNWIND $rows AS row "
             "MERGE (n:%s {name: row.name, type: row.type}) "
             "ON CREATE SET n += row "
-            "ON MATCH SET n += row" % label
+            "ON MATCH SET n += row "
+            "RETURN n.name AS name" % label
         )
         driver.execute_query(query, rows=rows)
         print("  nodes: %s -> %d" % (label, len(rows)))
@@ -76,8 +82,10 @@ def seed_domain(driver, name, dataset):
         dst_label = meta["node_labels"][e["to"][0]]
         query = (
             "MATCH (a:%s {name: $src}), (b:%s {name: $dst}) "
-            "CREATE (a)-[r:%s]->(b) "
-            "SET r += $props" % (src_label, dst_label, rel)
+            "MERGE (a)-[r:%s]->(b) "
+            "ON CREATE SET r += $props "
+            "ON MATCH SET r += $props "
+            "RETURN r" % (src_label, dst_label, rel)
         )
         props = {k: v for k, v in e.items() if k not in ("from", "to", "rel")}
         driver.execute_query(query, src=e["from"][1], dst=e["to"][1], props=props)
