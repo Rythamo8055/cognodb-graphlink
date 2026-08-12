@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GraphLink — three networks, one graph engine</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="banner" class="banner error hidden" role="alert"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">G</span>
+    <div class="brand-text">
+      <div class="brand-name">GraphLink</div>
+      <div class="brand-sub">three networks, one graph engine</div>
+    </div>
+    <span id="mode-tag" class="mode-tag hidden">demo data</span>
+  </div>
+  <nav class="tabs" id="tabs" aria-label="Domains"></nav>
+</header>
+
+<div class="view-bar">
+  <div class="view-toggle">
+    <button id="btn-explore" class="view-btn active" type="button">Explore</button>
+    <button id="btn-path" class="view-btn" type="button">Pathfinder</button>
+  </div>
+</div>
+
+<main class="main" id="main">
+  <section class="col col-left">
+    <div class="search-wrap">
+      <div class="search-box">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="q" type="text" autocomplete="off">
+        <button id="go" type="button">Search</button>
+      </div>
+      <div class="chips" id="chips"></div>
+    </div>
+    <div class="search-results" id="search-results"></div>
+
+    <section class="stats" id="stats" aria-label="Dataset stats"></section>
+
+    <section class="insights">
+      <h2 class="block-title" id="insights-title">Network insights</h2>
+      <div class="insight-grid">
+        <div class="insight-card" id="block-pairs"></div>
+        <div class="insight-card" id="block-interlocks"></div>
+        <div class="insight-card" id="block-alumni"></div>
+        <div class="insight-card" id="block-hubs"></div>
+      </div>
+    </section>
+
+    <details class="why" id="why">
+      <summary>Why a graph?</summary>
+      <div class="why-body" id="why-body"></div>
+    </details>
+  </section>
+
+  <aside class="col col-right">
+    <section class="node-panel" id="node-panel" aria-label="Node explorer"></section>
+  </aside>
+
+  <section class="path-panel" id="path-panel" aria-label="Pathfinder">
+    <h2 class="block-title">Pathfinder</h2>
+    <p class="panel-sub">Find the shortest chain of connections between any two nodes in this network.</p>
+    <div class="pf-row">
+      <div class="pf-field">
+        <label for="pf-a">From</label>
+        <input id="pf-a" autocomplete="off" placeholder="Type a node name">
+        <div class="suggest hidden" id="sug-a"></div>
+      </div>
+      <div class="pf-field">
+        <label for="pf-b">To</label>
+        <input id="pf-b" autocomplete="off" placeholder="Type a node name">
+        <div class="suggest hidden" id="sug-b"></div>
+      </div>
+    </div>
+    <button id="pf-go" class="pf-btn" type="button">Find path</button>
+    <div class="path-result" id="pf-result"></div>
+  </section>
+</main>
+
+<footer class="footer">
+  <span>GraphLink · one graph engine · sample data is fictional</span>
+  <a href="#why" id="why-link">Why a graph?</a>
+</footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
