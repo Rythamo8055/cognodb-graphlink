@@ -3,7 +3,7 @@ Subject: CognoDB Assignment 2 - Vishnu Vardhan
 Hi Wexa AI team,
 
 I am applying for the role and am submitting my CognoDB assignment. The
-repository is live at <REPO_URL>.
+repository is live at https://github.com/Rythamo8055/cognodb-graphlink.
 
 What I built: GraphLink - three networks on one graph engine. A single
 FastAPI application backed by a CognoDB instance covers three domains:
@@ -20,8 +20,10 @@ in relational SQL. The data model, setup steps, query reference, and
 screenshots are all documented in the README.
 
 How to run it:
-- Live demo: <DEMO_URL>
-- Screen recording: <RECORDING_URL>
+- Live demo: <DEMO_URL - hosted on Render, link sent once the instance is
+  created and the database is seeded>
+- Screen recording: https://github.com/Rythamo8055/cognodb-graphlink/blob/main/out.mp4
+  (also included in the repository root)
 - Local setup is documented in the README (create a free c0 instance at
   console.cognodb.com, cp .env.example .env, python -m app.seed, then
   uvicorn main:app --port 8000). The app also runs without a database via
